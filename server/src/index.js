@@ -14,13 +14,32 @@ const active = new Map()
 app.use(cors({ origin: origins }))
 app.use(express.json({ limit: '10kb' }))
 app.disable('x-powered-by')
+app.set('trust proxy', 1)
+
+const limits = new Map()
+function limitRequests(req, res, next) {
+  const now = Date.now()
+  const identifier = req.ip + ':' + req.path
+  const previous = limits.get(identifier)
+  const current = previous && previous.until > now ? previous : { until: now + 60000, count: 0 }
+  current.count++
+  limits.set(identifier, current)
+  if (current.count > (req.path.endsWith('/lookup') ? 25 : 15)) {
+    return res.status(429).json({ error: 'Too many attempts. Try again shortly.' })
+  }
+  next()
+}
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, value] of limits) if (value.until <= now) limits.delete(key)
+}, 60000).unref()
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
-app.post('/api/rooms', (req, res) => {
+app.post('/api/rooms', limitRequests, (req, res) => {
   const duration = req.body?.duration ?? 5
   const maxParticipants = req.body?.maxParticipants ?? 4
   try {
-    const room = store.create(duration, maxParticipants)
+    const room = store.create(duration, maxParticipants, req.body?.codeHash ?? null, req.body?.salt ?? null)
     res.status(201).json({
       id: room.id, expiresAt: room.expiresAt, duration: room.duration,
       maxParticipants: room.maxParticipants
@@ -28,6 +47,11 @@ app.post('/api/rooms', (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message })
   }
+})
+app.post('/api/rooms/lookup', limitRequests, (req, res) => {
+  const room = store.findByCodeHash(req.body?.codeHash)
+  if (!room) return res.status(404).json({ error: 'Invalid or expired code' })
+  res.json({ id: room.id, salt: room.salt })
 })
 app.get('/api/rooms/:id', (req, res) => {
   const room = store.get(req.params.id)

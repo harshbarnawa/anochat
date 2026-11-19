@@ -107,3 +107,28 @@ test('join and leave logs expire with the five-minute history window', () => {
   assert.equal(store.snapshot(store.get(room.id)).events.length, 0)
   assert.ok(store.get(room.id))
 })
+
+test('short code hashes are unique for active rooms and resolve to the same room', () => {
+  const store = new RoomStore()
+  const codeHash = 'a'.repeat(64)
+  const salt = 'A'.repeat(22)
+  const room = store.create(5, 4, codeHash, salt)
+  assert.equal(store.findByCodeHash(codeHash)?.id, room.id)
+  assert.equal(store.findByCodeHash(codeHash)?.salt, salt)
+  assert.throws(() => store.create(5, 4, codeHash, salt), /Code already/)
+  assert.equal(store.findByCodeHash('invalid'), null)
+  assert.equal(store.findByCodeHash('b'.repeat(64)), null)
+  assert.throws(() => store.create(5, 4, 'broken', salt), /Invalid room code/)
+})
+
+test('room expiry invalidates its short-code mapping', () => {
+  let now = 0
+  const store = new RoomStore(() => now)
+  const codeHash = 'e'.repeat(64)
+  const room = store.create(5, 4, codeHash, 'Z'.repeat(22))
+  assert.equal(store.codes.get(codeHash), room.id)
+  now = 300001
+  assert.equal(store.findByCodeHash(codeHash), null)
+  assert.equal(store.codes.has(codeHash), false)
+  assert.equal(store.create(5, 4, codeHash, 'Z'.repeat(22)).codeHash, codeHash)
+})

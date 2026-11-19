@@ -9,20 +9,30 @@ export class RoomStore {
   constructor(now = () => Date.now()) {
     this.now = now
     this.rooms = new Map()
+    this.codes = new Map()
   }
 
-  create(duration = 5, maxParticipants = 4) {
+  create(duration = 5, maxParticipants = 4, codeHash = null, salt = null) {
     if (!DURATIONS.includes(duration)) throw new Error('Invalid duration')
     if (!Number.isInteger(maxParticipants) || maxParticipants < 2 || maxParticipants > 10) {
       throw new Error('Choose between 2 and 10 people')
     }
+    if (codeHash !== null || salt !== null) {
+      if (typeof codeHash !== 'string' || !/^[a-f0-9]{64}$/.test(codeHash) ||
+          typeof salt !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(salt)) {
+        throw new Error('Invalid room code metadata')
+      }
+      const existingId = this.codes.get(codeHash)
+      if (existingId && this.get(existingId)) throw new Error('Code already in use')
+    }
     const id = randomUUID()
     const createdAt = this.now()
     const room = {
-      id, createdAt, expiresAt: createdAt + duration * 60000, duration, maxParticipants,
+      id, createdAt, expiresAt: createdAt + duration * 60000, duration, maxParticipants, codeHash, salt,
       participants: new Map(), messages: [], events: []
     }
     this.rooms.set(id, room)
+    if (codeHash) this.codes.set(codeHash, id)
     return room
   }
 
@@ -31,10 +41,17 @@ export class RoomStore {
     if (!room) return null
     if (room.expiresAt <= this.now()) {
       this.rooms.delete(id)
+      if (room.codeHash) this.codes.delete(room.codeHash)
       return null
     }
     this.pruneMessages(room)
     return room
+  }
+
+  findByCodeHash(codeHash) {
+    if (typeof codeHash !== 'string' || !/^[a-f0-9]{64}$/.test(codeHash)) return null
+    const roomId = this.codes.get(codeHash)
+    return roomId ? this.get(roomId) : null
   }
 
   pruneMessages(room) {
@@ -124,6 +141,7 @@ export class RoomStore {
       if (room.expiresAt <= this.now()) {
         expired.push(id)
         this.rooms.delete(id)
+        if (room.codeHash) this.codes.delete(room.codeHash)
       } else {
         this.pruneMessages(room)
       }

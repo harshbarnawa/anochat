@@ -42,3 +42,41 @@ export async function decryptMessage(key, message) {
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, decode(message.ciphertext))
   return textDecoder.decode(plaintext)
 }
+
+const codeAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+export function normalizeShortCode(value) {
+  const normalized = typeof value === 'string' ? value.replace(/[\s-]/g, '').toUpperCase() : ''
+  return /^[A-HJ-NP-Z2-9]{8}$/.test(normalized) ? normalized : null
+}
+
+export function generateShortCode() {
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, byte => codeAlphabet[byte & 31]).join('')
+}
+
+export function generateRoomSalt() {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return encode(bytes)
+}
+
+export async function hashShortCode(value) {
+  const code = normalizeShortCode(value)
+  if (!code) throw new Error('Enter a valid 8-character code')
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', textEncoder.encode(code)))
+  return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function deriveRoomSecret(value, salt) {
+  const code = normalizeShortCode(value)
+  if (!code || typeof salt !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(salt)) {
+    throw new Error('Invalid room code')
+  }
+  const material = await crypto.subtle.importKey('raw', textEncoder.encode(code), 'PBKDF2', false, ['deriveBits'])
+  const derived = await crypto.subtle.deriveBits({
+    name: 'PBKDF2', hash: 'SHA-256', salt: decode(salt), iterations: 180000
+  }, material, 256)
+  return encode(new Uint8Array(derived))
+}
