@@ -26,13 +26,14 @@ Original reference: https://github.com/h4dotai/h4chat
 - [ ] Execute npm install, tests, production build, and real two-device smoke test
 - [ ] Verify deploys and check WebSocket behavior on production hosts
 - [ ] Add integration tests for Socket.IO reconnect, ordering, and multiple tabs
+- [x] GitHub Actions workflow added to run unit tests and frontend build (run results not yet verified)
 
 ## Architecture
 
 Browser -> POST /api/rooms -> server creates in-memory room object.
 Browser -> /room/:uuid -> Socket.IO connection -> room:join ack.
 Browser -> message:send ack -> server validates membership and length -> room:state broadcast.
-Every 5 seconds server removes expired rooms and prunes messages older than 5 minutes.
+Every 5 seconds server removes expired rooms, prunes messages older than 5 minutes, and publishes refreshed room state so expired messages disappear from the UI.
 
 **Meaning of durations:** Room expires 5/10/30 minutes after **creation**, whether users are still connected or not. Every message is retained at most 5 minutes, even inside a 30-minute room. Expiry is based on server time. The sweep is 5 seconds; old messages are filtered whenever room state is read.
 

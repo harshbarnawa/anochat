@@ -80,6 +80,7 @@ setInterval(() => {
       }
     }
   }
+  for (const room of store.rooms.values()) publish(room)
 }, 5000).unref()
 
 const port = Number(process.env.PORT || 4000)
