@@ -17,12 +17,13 @@ A minimal terminal-style, no-login chat for temporary groups and quick formatted
 - [x] Added browser-side AES-256-GCM message encryption with random IV per message
 - [x] Invite URL includes encryption key in fragment, never sent as an API/Socket.IO parameter
 - [x] Server accepts/stores ciphertext + IV, not plaintext
-- [x] Copied code keeps spaces, tabs and line breaks; use Ctrl+Enter to send
+- [x] Copied code keeps spaces, tabs and line breaks; Enter sends, Shift+Enter inserts newline
 - [x] Retry-safe client message IDs and server duplicate suppression in active message history
 - [x] Added group-capacity tests and encryption round-trip/wrong-key tests
 - [x] GitHub Actions Node 22: server unit tests, client AES-GCM tests and Vite build passed (commit a4b338f)
 - [x] Render service `anochat-api` live with Node.js/Socket.IO; Vercel API and Socket.IO environment variables configured
-- [ ] Two real devices: join / send / reconnect / full room / expiry smoke test
+- [x] User-confirmed live chat in three browser sessions, including formatted code transfer
+- [ ] Separate phone, network interruption, capacity and expiry edge-case checks
 
 ## Key architectural concepts
 
@@ -50,9 +51,10 @@ A minimal terminal-style, no-login chat for temporary groups and quick formatted
 - [x] Vercel frontend linked to `harshbarnawa/anochat`: https://anochat.vercel.app
 - [x] Persistent Node.js server deployed to Render, service `anochat-api` (free tier)
 - [x] Vercel `VITE_API_URL`, `VITE_SOCKET_URL` and Render server `CLIENT_ORIGIN` configured
-- [ ] Real production end-to-end chat verification
+- [x] User-confirmed real-time messages across three live browsers
+- [ ] Full phone/network/reconnect smoke check
 
-Frontend and backend are linked. Render/Vercel deployments and CI passed; browser-to-browser production chat testing is still pending.
+Frontend and backend are linked. Render/Vercel and CI passed. Three-browser production messaging was confirmed by the user.
 
 ## Original project
 
@@ -105,7 +107,7 @@ Every 5 seconds server removes expired rooms, prunes messages older than 5 minut
 - [x] Mobile viewport and safe-area spacing refined for narrow devices
 - [x] GitHub Actions unit/encryption tests and production Vite build passing (commit `669284f`)
 - [x] Vercel frontend READY for commit `669284f`
-- [ ] Live browser two-device room creation and message relay smoke test (not yet verified)
+- [x] User-confirmed live multi-browser room creation and message relay
 
 Known limits: Render free services can cold-start; in-memory rooms disappear if server restarts; no public claim of security audit. No additional UI features until actual live messaging is tested.
 
@@ -119,7 +121,7 @@ Known limits: Render free services can cold-start; in-memory rooms disappear if 
 - [x] Added unit tests for activity log semantics and expiry.
 - [x] GitHub Actions server tests, encryption tests and Vite build passed for code commit `4d11cf1`.
 - [x] Vercel production deployment READY and Render service LIVE for code commit `4d11cf1`.
-- [ ] Fresh production two-browser smoke test specifically for join/leave logs and textarea growth.
+- [x] User confirmed join logs and message delivery in three simultaneous browser sessions; auto-grow/scroll polish released afterward.
 
 User confirmed live two-browser encrypted chat and code-formatting transfer before these changes. Activity logs contain public room metadata (names and timestamps), not plaintext messages.
 
@@ -132,5 +134,5 @@ User confirmed live two-browser encrypted chat and code-formatting transfer befo
 - [x] Retry a room join after a Socket.IO acknowledgement timeout without requiring a page refresh. Room-not-found responses are treated as expired.
 - [x] Show brief copied feedback on message copy button.
 - [x] Existing encryption, temporary retention, room defaults and minimal single-screen design preserved.
-- [ ] Verify this commit's CI test/build and deployment statuses.
+- [x] Commit `ad92dac`: CI tests/build passed, Vercel production READY, Render server LIVE.
 - [ ] Real phone keyboard and disconnect/reconnect smoke checks remain user-device tests; these are not claimed as verified by automated builds.
