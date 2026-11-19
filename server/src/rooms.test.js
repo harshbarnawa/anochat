@@ -77,3 +77,33 @@ test('message history expires after five minutes even in longer room', () => {
   now = 10 * 60000
   assert.equal(store.get(room.id), null)
 })
+
+test('join and leave logs appear once per participant, not per socket', () => {
+  const store = new RoomStore()
+  const room = store.create(10)
+  const first = store.join(room.id, participant(1), 'socket-a').participant.name
+  const second = store.join(room.id, participant(2), 'socket-b').participant.name
+  store.join(room.id, participant(1), 'socket-c')
+  assert.deepEqual(store.snapshot(room).events.map(event => [event.kind, event.name]), [
+    ['joined', first], ['joined', second]
+  ])
+  store.leave(room.id, participant(1), 'socket-a')
+  assert.equal(store.snapshot(room).events.length, 2)
+  store.leave(room.id, participant(1), 'socket-c')
+  assert.deepEqual(store.snapshot(room).events.at(-1).kind, 'left')
+  assert.equal(store.snapshot(room).events.at(-1).name, first)
+  store.leave(room.id, participant(1), 'socket-c')
+  assert.equal(store.snapshot(room).events.length, 3)
+})
+
+test('join and leave logs expire with the five-minute history window', () => {
+  let now = 0
+  const store = new RoomStore(() => now)
+  const room = store.create(10)
+  store.join(room.id, participant(1), 'socket-a')
+  store.leave(room.id, participant(1), 'socket-a')
+  assert.equal(store.snapshot(room).events.length, 2)
+  now = MESSAGE_TTL + 1
+  assert.equal(store.snapshot(store.get(room.id)).events.length, 0)
+  assert.ok(store.get(room.id))
+})

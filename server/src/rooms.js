@@ -20,7 +20,7 @@ export class RoomStore {
     const createdAt = this.now()
     const room = {
       id, createdAt, expiresAt: createdAt + duration * 60000, duration, maxParticipants,
-      participants: new Map(), messages: []
+      participants: new Map(), messages: [], events: []
     }
     this.rooms.set(id, room)
     return room
@@ -39,6 +39,12 @@ export class RoomStore {
 
   pruneMessages(room) {
     room.messages = room.messages.filter(message => message.createdAt + MESSAGE_TTL > this.now())
+    room.events = room.events.filter(event => event.createdAt + MESSAGE_TTL > this.now())
+  }
+
+  recordEvent(room, kind, name) {
+    room.events.push({ id: randomUUID(), kind, name, createdAt: this.now() })
+    if (room.events.length > 100) room.events.shift()
   }
 
   join(id, participantId, socketId) {
@@ -56,6 +62,7 @@ export class RoomStore {
       const unused = names.filter(name => !used.has(name))
       participant = { id: participantId, name: unused[randomInt(unused.length)], sockets: new Set() }
       room.participants.set(participantId, participant)
+      this.recordEvent(room, 'joined', participant.name)
     }
     participant.sockets.add(socketId)
     return { room, participant }
@@ -67,7 +74,10 @@ export class RoomStore {
     const participant = room.participants.get(participantId)
     if (!participant) return room
     participant.sockets.delete(socketId)
-    if (participant.sockets.size === 0) room.participants.delete(participantId)
+    if (participant.sockets.size === 0) {
+      room.participants.delete(participantId)
+      this.recordEvent(room, 'left', participant.name)
+    }
     return room
   }
 
@@ -103,7 +113,8 @@ export class RoomStore {
     return {
       id: room.id, expiresAt: room.expiresAt, duration: room.duration, maxParticipants: room.maxParticipants,
       participants: [...room.participants.values()].map(({ id, name }) => ({ id, name })),
-      messages: room.messages
+      messages: room.messages,
+      events: room.events
     }
   }
 

@@ -145,9 +145,19 @@ function App() {
     return () => clearInterval(timer)
   }, [state?.expiresAt])
 
+  const timeline = [...(state?.events || []).map(event => ({ ...event, type: 'activity' })), ...messages.map(message => ({ ...message, type: 'message' }))]
+    .sort((a, b) => a.createdAt - b.createdAt)
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [messages])
+  }, [messages, state?.events])
+
+  useEffect(() => {
+    const field = composerRef.current
+    if (!field) return
+    field.style.height = 'auto'
+    field.style.height = Math.min(field.scrollHeight, 200) + 'px'
+  }, [draft])
 
   async function createRoom() {
     if (creating) return
@@ -285,13 +295,15 @@ function App() {
         </div>
         <button className="create-button" onClick={createRoom} disabled={creating}>{creating ? 'creating...' : 'create room'}</button>
       </div>}
-      {roomId && messages.map(message => <div className="message" key={message.id}>
+      {roomId && timeline.map(item => item.type === 'activity'
+        ? <p className="activity" key={item.id}>[{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] {item.name} {item.kind}</p>
+        : <div className="message" key={item.id}>
         <div className="message-heading">
-          <span className={message.participantId === participantIdRef.current ? 'me' : ''}>{message.name}</span>
-          <time>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
-          <button onClick={() => copyMessage(message.text)} aria-label="Copy message">copy</button>
+          <span className={item.participantId === participantIdRef.current ? 'me' : ''}>{item.name}</span>
+          <time>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+          <button onClick={() => copyMessage(item.text)} aria-label="Copy message">copy</button>
         </div>
-        <pre>{message.text}</pre>
+        <pre>{item.text}</pre>
       </div>)}
       {roomId && connected && !messages.length && <p className="quiet">share the link to invite people.</p>}
       {expired && <p className="quiet">room expired.</p>}
@@ -306,7 +318,7 @@ function App() {
           onKeyDown={onComposerKeyDown}
           placeholder={connected ? 'message or paste code...' : 'create or join a room to chat'}
           maxLength={20000}
-          rows={2}
+          rows={1}
           disabled={!connected}
           aria-label="Message"
         />

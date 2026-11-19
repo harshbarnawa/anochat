@@ -108,3 +108,15 @@ Every 5 seconds server removes expired rooms, prunes messages older than 5 minut
 - [ ] Live browser two-device room creation and message relay smoke test (not yet verified)
 
 Known limits: Render free services can cold-start; in-memory rooms disappear if server restarts; no public claim of security audit. No additional UI features until actual live messaging is tested.
+
+## Phase 4 — join/leave logs and expanding composer (2026-11-19)
+
+- [x] Added server-generated anonymous join/leave activity events alongside encrypted messages in the chat timeline.
+- [x] Activity logs use muted text and disappear after the five-minute retention window.
+- [x] Joining twice from the same participant does not duplicate join logs, and leaving the last socket writes a leave log.
+- [x] Composer starts at one line and expands while typing (capped at 200px / mobile viewport), then scrolls internally.
+- [x] Enter sends, Shift+Enter adds newline, Tab inserts spaces.
+- [x] Added unit tests for activity log semantics and expiry.
+- [ ] Confirm automated tests/build, Vercel and Render deployments after this commit.
+
+User confirmed live two-browser encrypted chat and code-formatting transfer before these changes. Activity logs contain public room metadata (names and timestamps), not plaintext messages.
