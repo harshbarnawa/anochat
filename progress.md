@@ -21,7 +21,7 @@ A minimal terminal-style, no-login chat for temporary groups and quick formatted
 - [x] Retry-safe client message IDs and server duplicate suppression in active message history
 - [x] Added group-capacity tests and encryption round-trip/wrong-key tests
 - [x] GitHub Actions Node 22: server unit tests, client AES-GCM tests and Vite build passed (commit a4b338f)
-- [ ] Deploy persistent backend and configure frontend environment variables
+- [x] Render service `anochat-api` live with Node.js/Socket.IO; Vercel API and Socket.IO environment variables configured
 - [ ] Two real devices: join / send / reconnect / full room / expiry smoke test
 
 ## Key architectural concepts
@@ -48,11 +48,11 @@ A minimal terminal-style, no-login chat for temporary groups and quick formatted
 ## Deployment
 
 - [x] Vercel frontend linked to `harshbarnawa/anochat`: https://anochat.vercel.app
-- [ ] Persistent Node.js server deployment
-- [ ] Vercel `VITE_API_URL` and `VITE_SOCKET_URL` and server `CLIENT_ORIGIN`
+- [x] Persistent Node.js server deployed to Render, service `anochat-api` (free tier)
+- [x] Vercel `VITE_API_URL`, `VITE_SOCKET_URL` and Render server `CLIENT_ORIGIN` configured
 - [ ] Real production end-to-end chat verification
 
-The live frontend alone cannot create rooms until backend deployment is finished.
+Frontend and backend are linked. Render/Vercel deployments and CI passed; browser-to-browser production chat testing is still pending.
 
 ## Original project
 
@@ -94,3 +94,17 @@ Every 5 seconds server removes expired rooms, prunes messages older than 5 minut
 - Build and tests require verification before calling this a working release.
 
 
+
+## Phase 3 — single-page app and deployment (2026-11-19)
+
+- [x] Render free web service: `anochat-api`, Singapore, Node.js  server, GitHub main auto-deploy
+- [x] Server reports LIVE in Render and logs show `anochat server listening on :10000`
+- [x] Frontend env vars point to `https://anochat-api.onrender.com`; Render CORS allows `https://anochat.vercel.app`
+- [x] Replaced separate home screen with one chat screen: inline create-room options and disabled composer until connected
+- [x] Enter sends, Shift+Enter adds newline, Tab inserts spaces; mobile has Send button
+- [x] Mobile viewport and safe-area spacing refined for narrow devices
+- [x] GitHub Actions unit/encryption tests and production Vite build passing (commit `669284f`)
+- [x] Vercel frontend READY for commit `669284f`
+- [ ] Live browser two-device room creation and message relay smoke test (not yet verified)
+
+Known limits: Render free services can cold-start; in-memory rooms disappear if server restarts; no public claim of security audit. No additional UI features until actual live messaging is tested.

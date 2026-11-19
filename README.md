@@ -35,7 +35,7 @@ Open http://localhost:5173. The Vite client proxies backend requests to Node.js 
 
 ## Deployment
 
-Vercel serves the static frontend. A separate persistent Socket.IO/Express backend is required for creating rooms and sending messages.
+Vercel serves the frontend at https://anochat.vercel.app and Render serves the persistent Socket.IO/Express backend at https://anochat-api.onrender.com. The app uses one responsive chat screen: before room creation its message composer is disabled, and room options appear within the chat screen.
 
 Backend environment:
 - `PORT` — server port, defaults to 4000
@@ -45,4 +45,4 @@ Vercel client build environment:
 - `VITE_API_URL` — public backend base URL
 - `VITE_SOCKET_URL` — public backend Socket.IO URL (usually same as API)
 
-Rooms and messages exist in the memory of one Node server and vanish after the configured expiry or server restart. The project is not horizontally scalable yet. See [progress.md](./progress.md) for implementation and testing notes.
+Rooms and messages exist in the memory of one Node server and vanish after the configured expiry or server restart. Render free hosting may sleep when inactive, which can delay first connections. The project is not horizontally scalable yet. See [progress.md](./progress.md) for implementation and testing notes.
