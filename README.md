@@ -8,7 +8,9 @@ Temporary, anonymous group chat for sharing messages and formatted code between 
 
 - Default duration: **5 minutes**, choose 5 / 10 / 30 minutes.
 - Default people limit: **4**, choose any number from **2 to 10**.
-- The invite URL gives access to the room. Share it only with the people you want to join.
+- Create a room to get **both** a full invite link and a short 8-character code. Both join the same room.
+- Enter the code on the single chat screen to join without pasting a long URL. Code entry disappears once connected.
+- The short code is displayed with a Copy Code button for the creator and anyone who joined using the code. Link-only joiners can still copy the full invite URL.
 - All participants share the same chat, like a temporary group conversation. Join/leave events are displayed for five minutes.
 - Messages remain for at most 5 minutes; the room closes when its chosen duration ends.
 - Pasting and copying code preserves whitespace, tabs, indentation and line breaks. The editor auto-grows and only scrolls internally for long messages.
@@ -16,9 +18,9 @@ Temporary, anonymous group chat for sharing messages and formatted code between 
 
 ## Encryption
 
-Browsers encrypt and decrypt messages using a shared random **256-bit AES-GCM room key**, embedded after `#k=` in the invite link. URL fragments are not sent in normal HTTP requests. The Node.js server stores and broadcasts **ciphertext and IV only**. The room key is never sent to the server by this app.
+Browsers encrypt and decrypt messages with **AES-256-GCM**. For newly created short-code rooms, the browser derives a 256-bit AES key from the 8-character room code and a random salt using PBKDF2-SHA-256 (180,000 iterations). The full invite URL contains the derived key after `#k=`. The backend stores only the code's SHA-256 lookup hash, salt, and encrypted message payloads; it does not receive the code or plaintext message key directly. Existing full-link-only rooms remain compatible.
 
-This is a lightweight browser-side encrypted learning project, **not an independently audited messenger**. Anyone with the full invite link can decrypt messages; sharing the link shares the key. There is no user identity verification, group membership is not cryptographically authenticated, and browsers still trust the served client code. Do not use it for sensitive secrets.
+**Security trade-off:** An 8-character code is convenient but has only about 40 bits of search space, not 256 bits of independent secret entropy. A malicious server or someone with its code hashes may be able to try guesses offline. Requests to look up codes are rate-limited, but that does not solve offline attacks. Anyone with the link or code can access the room if space remains, and can derive the message key. This is a short-lived learning/utility app, **not an independently audited secure messenger**. Do not send passwords or sensitive secrets.
 
 ## Start for development
 

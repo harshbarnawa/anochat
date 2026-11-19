@@ -136,3 +136,19 @@ User confirmed live two-browser encrypted chat and code-formatting transfer befo
 - [x] Existing encryption, temporary retention, room defaults and minimal single-screen design preserved.
 - [x] Commit `ad92dac`: CI tests/build passed, Vercel production READY, Render server LIVE.
 - [ ] Real phone keyboard and disconnect/reconnect smoke checks remain user-device tests; these are not claimed as verified by automated builds.
+
+## Phase 6 — short invite codes (2026-11-19)
+
+- [x] New rooms generate an 8-character human-readable uppercase code (32-symbol alphabet, avoiding ambiguous I/O/0/1).
+- [x] Existing full invite URL continues working and contains the same browser-derived AES-GCM key.
+- [x] Added code input + Join action to the existing single chat screen; both disappear after joining.
+- [x] Show code as read-only text with a Copy Code button while in a room, if this browser knows the code.
+- [x] Server holds SHA-256(code) to resolve an active room and its random salt, with per-IP short-code lookup rate limiting.
+- [x] Browser derives the AES-256-GCM key with PBKDF2-SHA-256 (180k iterations) and the room salt, so server does not directly receive raw code or message key.
+- [x] Old invite links with their existing 256-bit key still work while those rooms remain alive.
+- [x] Code index is removed on room expiration; join is rejected after expiry.
+- [x] Added unit tests for code lookup, collision/expiry, code normalization and encrypted message round-trip.
+- [ ] Verify this feature's GitHub Actions tests/build and Render + Vercel rollouts.
+- [ ] Manually verify cross-browser joining by the short code and by full link.
+
+Security note: Eight-character code = approximately 40 bits of entropy, not equivalent to a truly random 256-bit invite secret. A server with code hashes can attempt offline guessing. Short codes are intended only for temporary convenience and are not appropriate for high-sensitivity communications.

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
-import { decryptMessage, encryptMessage, generateRoomKey, importRoomKey } from './crypto.js'
+import { decryptMessage, encryptMessage, importRoomKey, generateShortCode, generateRoomSalt, hashShortCode, deriveRoomSecret, normalizeShortCode } from './crypto.js'
 
 const api = import.meta.env.VITE_API_URL || ''
 const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin
@@ -35,6 +35,12 @@ function App() {
   const [duration, setDuration] = useState(5)
   const [maxParticipants, setMaxParticipants] = useState(4)
   const [creating, setCreating] = useState(false)
+  const [enterCode, setEnterCode] = useState('')
+  const [joiningByCode, setJoiningByCode] = useState(false)
+  const [roomCode, setRoomCode] = useState(() => {
+    const id = roomFromPath()
+    return id ? sessionStorage.getItem('anochat:code:' + id) : null
+  })
   const [key, setKey] = useState(null)
   const [state, setState] = useState(null)
   const [status, setStatus] = useState('idle')
@@ -44,6 +50,7 @@ function App() {
   const [messages, setMessages] = useState([])
   const [seconds, setSeconds] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState(null)
   const [sending, setSending] = useState(false)
   const socketRef = useRef(null)
@@ -57,6 +64,7 @@ function App() {
     const onPopState = () => {
       const next = roomFromPath()
       setRoomId(next)
+      setRoomCode(next ? sessionStorage.getItem('anochat:code:' + next) : null)
       participantIdRef.current = next ? getParticipantId(next) : null
     }
     window.addEventListener('popstate', onPopState)
@@ -189,33 +197,83 @@ function App() {
     }
   }, [])
 
+  function openRoom(id, code, secret) {
+    sessionStorage.setItem('anochat:code:' + id, code)
+    window.history.pushState(null, '', '/room/' + id + '#k=' + secret)
+    setRoomCode(code)
+    setEnterCode('')
+    participantIdRef.current = getParticipantId(id)
+    setRoomId(id)
+  }
+
   async function createRoom() {
-    if (creating) return
+    if (creating || joiningByCode) return
     setCreating(true)
     setError('')
     try {
-      const secret = generateRoomKey()
+      const code = generateShortCode()
+      const salt = generateRoomSalt()
+      const codeHash = await hashShortCode(code)
+      const secret = await deriveRoomSecret(code, salt)
       const response = await fetch(api + '/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ duration, maxParticipants })
+        body: JSON.stringify({ duration, maxParticipants, codeHash, salt })
       })
-      if (!response.ok) throw new Error('Server unavailable')
       const room = await response.json()
+      if (!response.ok) throw new Error(room.error || 'Room could not be created')
       if (!room.id) throw new Error('Invalid room')
-      window.history.pushState(null, '', '/room/' + room.id + '#k=' + secret)
-      participantIdRef.current = getParticipantId(room.id)
-      setRoomId(room.id)
-    } catch {
-      setError('Could not create room. Try again.')
+      openRoom(room.id, code, secret)
+    } catch (err) {
+      setError(err.message || 'Could not create room. Try again.')
     } finally {
       setCreating(false)
+    }
+  }
+
+  async function joinWithCode() {
+    if (creating || joiningByCode) return
+    const code = normalizeShortCode(enterCode)
+    if (!code) {
+      setError('Enter the 8-character room code.')
+      return
+    }
+    setJoiningByCode(true)
+    setError('')
+    try {
+      const codeHash = await hashShortCode(code)
+      const response = await fetch(api + '/api/rooms/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codeHash })
+      })
+      const room = await response.json()
+      if (!response.ok) throw new Error(room.error || 'Invalid or expired code')
+      if (!room.id || !room.salt) throw new Error('Invalid room')
+      const secret = await deriveRoomSecret(code, room.salt)
+      openRoom(room.id, code, secret)
+    } catch (err) {
+      setError(err.message || 'Could not join room. Try again.')
+    } finally {
+      setJoiningByCode(false)
+    }
+  }
+
+  async function copyRoomCode() {
+    if (!roomCode) return
+    try {
+      await navigator.clipboard.writeText(roomCode)
+      setCopiedCode(true)
+      setTimeout(() => setCopiedCode(false), 1500)
+    } catch {
+      setError('Could not copy room code.')
     }
   }
 
   function resetRoom() {
     window.history.pushState(null, '', '/')
     setRoomId(null)
+    setRoomCode(null)
     setKey(null)
     setState(null)
     setMessages([])
@@ -309,6 +367,7 @@ function App() {
     </header>
     <div className="room-users">
       <span>{roomId ? (connected ? name + ' · connected' : status) : 'not connected'}</span>
+      {roomId && roomCode && <span className="room-code"><strong>{roomCode}</strong><button onClick={copyRoomCode}>{copiedCode ? 'copied' : 'copy code'}</button></span>}
       <span>{online.length}/{state?.maxParticipants ?? maxParticipants} online</span>
     </div>
     <section className="message-list" ref={scrollRef} aria-label="Chat messages">
@@ -325,7 +384,20 @@ function App() {
             </select>
           </label>
         </div>
-        <button className="create-button" onClick={createRoom} disabled={creating}>{creating ? 'creating...' : 'create room'}</button>
+        <button className="create-button" onClick={createRoom} disabled={creating || joiningByCode}>{creating ? 'creating...' : 'create room'}</button>
+        <form className="code-entry" onSubmit={event => { event.preventDefault(); joinWithCode() }}>
+          <input
+            aria-label="Enter room code"
+            placeholder="enter room code"
+            value={enterCode}
+            maxLength={12}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            onChange={event => { setEnterCode(event.target.value.toUpperCase().replace(/[^A-Z0-9\s-]/g, '')); setError('') }}
+          />
+          <button type="submit" disabled={joiningByCode || creating}>{joiningByCode ? '...' : 'join'}</button>
+        </form>
       </div>}
       {roomId && timeline.map(item => item.type === 'activity'
         ? <p className="activity" key={item.id}>[{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] {item.name} {item.kind}</p>
