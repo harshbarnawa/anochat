@@ -9,10 +9,10 @@ Temporary, anonymous group chat for sharing messages and formatted code between 
 - Default duration: **5 minutes**, choose 5 / 10 / 30 minutes.
 - Default people limit: **4**, choose any number from **2 to 10**.
 - The invite URL gives access to the room. Share it only with the people you want to join.
-- All participants share the same chat, like a temporary group conversation.
+- All participants share the same chat, like a temporary group conversation. Join/leave events are displayed for five minutes.
 - Messages remain for at most 5 minutes; the room closes when its chosen duration ends.
-- Pasting and copying code preserves whitespace, tabs, indentation and line breaks.
-- Enter adds a new line; Ctrl/Cmd+Enter sends; Tab inserts two spaces.
+- Pasting and copying code preserves whitespace, tabs, indentation and line breaks. The editor auto-grows and only scrolls internally for long messages.
+- Enter sends; Shift+Enter inserts a new line; Tab inserts two spaces. Messages can also be sent with the button.
 
 ## Encryption
 

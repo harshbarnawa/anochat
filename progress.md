@@ -122,3 +122,15 @@ Known limits: Render free services can cold-start; in-memory rooms disappear if 
 - [ ] Fresh production two-browser smoke test specifically for join/leave logs and textarea growth.
 
 User confirmed live two-browser encrypted chat and code-formatting transfer before these changes. Activity logs contain public room metadata (names and timestamps), not plaintext messages.
+
+## Phase 5 — small v1 finishing fixes (2026-11-19)
+
+- [x] User verified the live app across **three browsers**: room joining, message sync, anonymous join logs and code transfer work.
+- [x] Fixed unnecessary textarea scrollbar for short drafts. Composer now grows until a capped height and scrolls internally only for longer drafts.
+- [x] Use dynamic viewport height on mobile, 16px input font to avoid iOS focus zoom, and disable keyboard autocorrect/spellcheck for pasted code.
+- [x] Repeated join requests on the same socket/participant no longer generate fake leave/join events.
+- [x] Retry a room join after a Socket.IO acknowledgement timeout without requiring a page refresh. Room-not-found responses are treated as expired.
+- [x] Show brief copied feedback on message copy button.
+- [x] Existing encryption, temporary retention, room defaults and minimal single-screen design preserved.
+- [ ] Verify this commit's CI test/build and deployment statuses.
+- [ ] Real phone keyboard and disconnect/reconnect smoke checks remain user-device tests; these are not claimed as verified by automated builds.

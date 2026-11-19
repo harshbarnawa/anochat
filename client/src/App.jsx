@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { decryptMessage, encryptMessage, generateRoomKey, importRoomKey } from './crypto.js'
 
@@ -20,6 +20,16 @@ function roomFromPath() {
   return match?.[1] || null
 }
 
+function fitComposer(field) {
+  if (!field) return
+  field.style.height = 'auto'
+  const viewport = window.visualViewport?.height || window.innerHeight
+  const limit = Math.max(42, Math.min(200, Math.floor(viewport * 0.38)))
+  const height = Math.max(42, field.scrollHeight + 2)
+  field.style.height = Math.min(height, limit) + 'px'
+  field.style.overflowY = height > limit ? 'auto' : 'hidden'
+}
+
 function App() {
   const [roomId, setRoomId] = useState(roomFromPath)
   const [duration, setDuration] = useState(5)
@@ -34,6 +44,7 @@ function App() {
   const [messages, setMessages] = useState([])
   const [seconds, setSeconds] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [copiedMessageId, setCopiedMessageId] = useState(null)
   const [sending, setSending] = useState(false)
   const socketRef = useRef(null)
   const composerRef = useRef(null)
@@ -76,16 +87,23 @@ function App() {
     const socket = io(socketUrl, { reconnection: true, transports: ['websocket', 'polling'] })
     socketRef.current = socket
 
+    let retryTimer
+    let stopped = false
+
     function join() {
+      if (stopped || !socket.connected) return
+      clearTimeout(retryTimer)
       setStatus('connecting')
       socket.timeout(10000).emit('room:join', { roomId, participantId: participantIdRef.current }, (err, result) => {
+        if (stopped || !socket.connected) return
         if (err) {
           setStatus('disconnected')
           setError('Connection timed out. Retrying...')
+          retryTimer = setTimeout(join, 2500)
           return
         }
         if (!result?.ok) {
-          setStatus('error')
+          setStatus(result?.error === 'Room not found or expired' ? 'expired' : 'error')
           setError(result?.error || 'Cannot join room')
           return
         }
@@ -99,13 +117,18 @@ function App() {
     socket.on('connect', join)
     socket.on('room:state', setState)
     socket.on('room:expired', () => { setStatus('expired'); setError('Room expired.') })
-    socket.on('disconnect', () => setStatus(current => current === 'expired' ? current : 'disconnected'))
+    socket.on('disconnect', () => {
+      clearTimeout(retryTimer)
+      setStatus(current => current === 'expired' ? current : 'disconnected')
+    })
     socket.on('connect_error', () => {
       setStatus('disconnected')
       setError('Server unavailable. Reconnecting...')
     })
 
     return () => {
+      stopped = true
+      clearTimeout(retryTimer)
       socket.removeAllListeners()
       socket.disconnect()
       if (socketRef.current === socket) socketRef.current = null
@@ -152,12 +175,19 @@ function App() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [messages, state?.events])
 
-  useEffect(() => {
-    const field = composerRef.current
-    if (!field) return
-    field.style.height = 'auto'
-    field.style.height = Math.min(field.scrollHeight, 200) + 'px'
+  useLayoutEffect(() => {
+    fitComposer(composerRef.current)
   }, [draft])
+
+  useEffect(() => {
+    const resize = () => fitComposer(composerRef.current)
+    window.addEventListener('resize', resize)
+    window.visualViewport?.addEventListener('resize', resize)
+    return () => {
+      window.removeEventListener('resize', resize)
+      window.visualViewport?.removeEventListener('resize', resize)
+    }
+  }, [])
 
   async function createRoom() {
     if (creating) return
@@ -207,9 +237,11 @@ function App() {
     }
   }
 
-  async function copyMessage(text) {
+  async function copyMessage(text, id) {
     try {
       await navigator.clipboard.writeText(text)
+      setCopiedMessageId(id)
+      setTimeout(() => setCopiedMessageId(current => current === id ? null : current), 1500)
     } catch {
       setError('Copy failed.')
     }
@@ -255,7 +287,7 @@ function App() {
       setDraft(current => current.slice(0, start) + '  ' + current.slice(end))
       requestAnimationFrame(() => { field.selectionStart = field.selectionEnd = start + 2 })
     }
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
       event.preventDefault()
       send()
     }
@@ -301,7 +333,7 @@ function App() {
         <div className="message-heading">
           <span className={item.participantId === participantIdRef.current ? 'me' : ''}>{item.name}</span>
           <time>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
-          <button onClick={() => copyMessage(item.text)} aria-label="Copy message">copy</button>
+          <button onClick={() => copyMessage(item.text, item.id)} aria-label="Copy message">{copiedMessageId === item.id ? 'copied' : 'copy'}</button>
         </div>
         <pre>{item.text}</pre>
       </div>)}
@@ -319,6 +351,11 @@ function App() {
           placeholder={connected ? 'message or paste code...' : 'create or join a room to chat'}
           maxLength={20000}
           rows={1}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="send"
           disabled={!connected}
           aria-label="Message"
         />

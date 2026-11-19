@@ -44,7 +44,7 @@ io.on('connection', socket => {
     if (typeof ack !== 'function') return
     if (!data || typeof data.roomId !== 'string') return ack({ ok: false, error: 'Invalid room' })
     const previous = active.get(socket.id)
-    if (previous) {
+    if (previous && (previous.roomId !== data.roomId || previous.participantId !== data.participantId)) {
       socket.leave(previous.roomId)
       const oldRoom = store.leave(previous.roomId, previous.participantId, socket.id)
       active.delete(socket.id)
