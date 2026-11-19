@@ -82,3 +82,14 @@ Open http://localhost:5173. Run `npm test` and `npm run build` separately.
 - Paste-size limits, syntax-highlighted code blocks, copy-feedback
 - Request throttling, connection limits, security review
 - Redis state + horizontal scaling and load-test results
+
+## Deployment progress — 2026-11-19
+
+- [x] Vercel project `anochat` created and connected to GitHub `harshbarnawa/anochat` main branch.
+- [x] Production frontend is READY at https://anochat.vercel.app (Vite build, commit 62296bb).
+- [x] Added client/vercel.json to serve `/room/:id` routes through the SPA.
+- [ ] Deploy persistent Socket.IO backend (not supported by the static Vercel frontend alone).
+- [ ] Set VITE_API_URL and VITE_SOCKET_URL in Vercel and CLIENT_ORIGIN on backend, then redeploy frontend.
+- [ ] Verify create-room and two-device chat end to end after backend deployment.
+
+Current live site is **frontend-only**: API `/api/rooms` is not connected to a live server, so Create Room will fail until the backend is online. Keep implementation focused; no optional features during deployment.
