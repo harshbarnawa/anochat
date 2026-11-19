@@ -1,9 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webcrypto } from 'node:crypto'
 import { generateRoomKey, importRoomKey, encryptMessage, decryptMessage } from './crypto.js'
 
-globalThis.crypto = webcrypto
 
 test('two browsers using shared room key decrypt identical text and code', async () => {
   const secret = generateRoomKey()
