@@ -7,7 +7,7 @@ import { RoomStore } from './rooms.js'
 const app = express()
 const server = http.createServer(app)
 const origins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',').map(value => value.trim())
-const io = new Server(server, { cors: { origin: origins, methods: ['GET', 'POST'] }, maxHttpBufferSize: 30000 })
+const io = new Server(server, { cors: { origin: origins, methods: ['GET', 'POST'] }, maxHttpBufferSize: 160000 })
 const store = new RoomStore()
 const active = new Map()
 
@@ -17,15 +17,22 @@ app.disable('x-powered-by')
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 app.post('/api/rooms', (req, res) => {
-  const duration = req.body?.duration
-  if (![5, 10, 30].includes(duration)) return res.status(400).json({ error: 'Select 5, 10, or 30 minutes' })
-  const room = store.create(duration)
-  res.status(201).json({ id: room.id, expiresAt: room.expiresAt, duration: room.duration })
+  const duration = req.body?.duration ?? 5
+  const maxParticipants = req.body?.maxParticipants ?? 4
+  try {
+    const room = store.create(duration, maxParticipants)
+    res.status(201).json({
+      id: room.id, expiresAt: room.expiresAt, duration: room.duration,
+      maxParticipants: room.maxParticipants
+    })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
 })
 app.get('/api/rooms/:id', (req, res) => {
   const room = store.get(req.params.id)
   if (!room) return res.status(404).json({ error: 'Room not found or expired' })
-  res.json({ id: room.id, expiresAt: room.expiresAt, duration: room.duration })
+  res.json({ id: room.id, expiresAt: room.expiresAt, duration: room.duration, maxParticipants: room.maxParticipants })
 })
 
 function publish(room) {
@@ -55,10 +62,10 @@ io.on('connection', socket => {
     if (typeof ack !== 'function') return
     const session = active.get(socket.id)
     if (!session) return ack({ ok: false, error: 'Not connected to a room' })
-    const result = store.addMessage(session.roomId, session.participantId, data?.text)
+    const result = store.addMessage(session.roomId, session.participantId, data)
     if (result.error) return ack({ ok: false, error: result.error })
     ack({ ok: true, id: result.message.id })
-    publish(result.room)
+    if (!result.duplicate) publish(result.room)
   })
 
   socket.on('disconnect', () => {

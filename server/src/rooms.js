@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 
 export const DURATIONS = [5, 10, 30]
 export const MESSAGE_TTL = 5 * 60 * 1000
-export const MAX_MESSAGE_LENGTH = 20000
+export const MAX_CIPHERTEXT_LENGTH = 120000
 const names = ['ghost', 'void', 'cipher', 'shadow', 'null', 'zero', 'pixel', 'echo', 'byte', 'nova']
 
 export class RoomStore {
@@ -11,11 +11,17 @@ export class RoomStore {
     this.rooms = new Map()
   }
 
-  create(duration) {
+  create(duration = 5, maxParticipants = 4) {
     if (!DURATIONS.includes(duration)) throw new Error('Invalid duration')
+    if (!Number.isInteger(maxParticipants) || maxParticipants < 2 || maxParticipants > 10) {
+      throw new Error('Choose between 2 and 10 people')
+    }
     const id = randomUUID()
     const createdAt = this.now()
-    const room = { id, createdAt, expiresAt: createdAt + duration * 60000, duration, participants: new Map(), messages: [] }
+    const room = {
+      id, createdAt, expiresAt: createdAt + duration * 60000, duration, maxParticipants,
+      participants: new Map(), messages: []
+    }
     this.rooms.set(id, room)
     return room
   }
@@ -39,15 +45,16 @@ export class RoomStore {
     const room = this.get(id)
     if (!room) return { error: 'Room not found or expired' }
     if (typeof participantId !== 'string' || !/^[a-zA-Z0-9-]{8,80}$/.test(participantId)) {
-      return { error: 'Invalid participant ID' }
+      return { error: 'Invalid participant' }
     }
     let participant = room.participants.get(participantId)
-    if (!participant && room.participants.size >= 2) return { error: 'This room is full (2/2)' }
+    if (!participant && room.participants.size >= room.maxParticipants) {
+      return { error: 'Room is full (' + room.maxParticipants + '/' + room.maxParticipants + ')' }
+    }
     if (!participant) {
-      const used = new Set([...room.participants.values()].map(item => item.name))
-      const available = names.filter(name => !used.has(name))
-      const name = available[Math.floor(Math.random() * available.length)]
-      participant = { id: participantId, name, sockets: new Set() }
+      const used = new Set([...room.participants.values()].map(value => value.name))
+      const unused = names.filter(name => !used.has(name))
+      participant = { id: participantId, name: unused[randomInt(unused.length)], sockets: new Set() }
       room.participants.set(participantId, participant)
     }
     participant.sockets.add(socketId)
@@ -64,25 +71,37 @@ export class RoomStore {
     return room
   }
 
-  addMessage(id, participantId, text) {
+  addMessage(id, participantId, data) {
     const room = this.get(id)
     if (!room) return { error: 'Room expired' }
     const participant = room.participants.get(participantId)
     if (!participant || participant.sockets.size === 0) return { error: 'Join the room first' }
-    if (typeof text !== 'string' || !text.trim() || text.length > MAX_MESSAGE_LENGTH) {
-      return { error: 'Message must contain 1–20000 characters' }
+    if (!data || typeof data !== 'object' ||
+        typeof data.iv !== 'string' || !/^[A-Za-z0-9_-]{16}$/.test(data.iv) ||
+        typeof data.ciphertext !== 'string' ||
+        data.ciphertext.length < 22 || data.ciphertext.length > MAX_CIPHERTEXT_LENGTH ||
+        !/^[A-Za-z0-9_-]+$/.test(data.ciphertext) ||
+        typeof data.clientMessageId !== 'string' ||
+        !/^[a-f0-9-]{36}$/i.test(data.clientMessageId)) {
+      return { error: 'Invalid encrypted message' }
     }
-    const message = { id: randomUUID(), participantId, name: participant.name, text, createdAt: this.now() }
+    const existing = room.messages.find(message =>
+      message.participantId === participantId && message.clientMessageId === data.clientMessageId
+    )
+    if (existing) return { message: existing, room, duplicate: true }
+    const message = {
+      id: randomUUID(), clientMessageId: data.clientMessageId,
+      participantId, name: participant.name, iv: data.iv, ciphertext: data.ciphertext,
+      createdAt: this.now()
+    }
     room.messages.push(message)
-    return { message, room }
+    return { message, room, duplicate: false }
   }
 
   snapshot(room) {
     this.pruneMessages(room)
     return {
-      id: room.id,
-      expiresAt: room.expiresAt,
-      duration: room.duration,
+      id: room.id, expiresAt: room.expiresAt, duration: room.duration, maxParticipants: room.maxParticipants,
       participants: [...room.participants.values()].map(({ id, name }) => ({ id, name })),
       messages: room.messages
     }
