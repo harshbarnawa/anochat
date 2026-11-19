@@ -52,7 +52,7 @@ function Home() {
       <section className="create-panel">
         <div className="section-title"><Clock3 size={15} /> room lifetime <span className="hint">choose before creating</span></div>
         <div className="duration-picker">{durations.map(value => <button key={value} type="button" className={duration === value ? 'selected' : ''} onClick={() => setDuration(value)}>{value} min</button>)}</div>
-        <button className="primary" disabled={working} onClick={createRoom}>{working ? 'creating room...' : 'create secure room'} <ArrowRight size={17} /></button>
+        <button className="primary" disabled={working} onClick={createRoom}>{working ? 'creating room...' : 'create room'} <ArrowRight size={17} /></button>
         {error && <p role="alert" className="error">{error}</p>}
       </section>
       <div className="home-footnotes"><span><Hash size={13} /> unique room link</span><span><Users size={13} /> max 2 people</span><span><Clock3 size={13} /> 5 min message history</span></div>
