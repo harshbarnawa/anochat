@@ -148,7 +148,10 @@ User confirmed live two-browser encrypted chat and code-formatting transfer befo
 - [x] Old invite links with their existing 256-bit key still work while those rooms remain alive.
 - [x] Code index is removed on room expiration; join is rejected after expiry.
 - [x] Added unit tests for code lookup, collision/expiry, code normalization and encrypted message round-trip.
-- [ ] Verify this feature's GitHub Actions tests/build and Render + Vercel rollouts.
-- [ ] Manually verify cross-browser joining by the short code and by full link.
+- [x] GitHub Actions server tests, browser-side encryption tests and Vite production build passed for commit `4fc5726`.
+- [x] Vercel production deployment READY and Render API deployment LIVE for commit `4fc5726`.
+- [ ] Manually verify cross-browser joining by the short code and by full link (not yet user-confirmed).
 
 Security note: Eight-character code = approximately 40 bits of entropy, not equivalent to a truly random 256-bit invite secret. A server with code hashes can attempt offline guessing. Short codes are intended only for temporary convenience and are not appropriate for high-sensitivity communications.
+
+Code visibility: the room creator and people who joined by a short code can see/copy that code in the current browser; someone who only has the full URL can use Copy Link, but cannot reconstruct the code from the derived encryption key.
