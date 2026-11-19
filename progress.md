@@ -8,7 +8,7 @@ Rebuild h4chat as **anochat**, a no-login anonymous real-time app optimized for 
 
 Original reference: https://github.com/h4dotai/h4chat
 
-## Phase 1 — initial implementation (code added; runtime verification pending)
+## Phase 1 — initial implementation (CI checks passing; real-device testing pending)
 
 - [x] Repository scaffolding: JavaScript monorepo, React/Vite client, Express/Socket.IO server
 - [x] Minimal black, monospace terminal-inspired homepage and chat layout
@@ -23,10 +23,11 @@ Original reference: https://github.com/h4dotai/h4chat
 - [x] Plain text message display using pre-wrap and copy button to preserve indentation
 - [x] Room expiration countdown, users sidebar, link-copy, phone-responsive styles
 - [x] RoomStore unit tests (written, not yet run in this environment)
-- [ ] Execute npm install, tests, production build, and real two-device smoke test
+- [x] GitHub Actions executed npm install, server unit tests, and frontend production build successfully (2026-11-19)
+- [ ] Real two-device smoke test on deployed instances
 - [ ] Verify deploys and check WebSocket behavior on production hosts
 - [ ] Add integration tests for Socket.IO reconnect, ordering, and multiple tabs
-- [x] GitHub Actions workflow added to run unit tests and frontend build (run results not yet verified)
+- [x] GitHub Actions workflow running tests and build on push/PR (passing on commit b053823)
 
 ## Architecture
 
