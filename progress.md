@@ -1,33 +1,64 @@
-# anochat — build progress and learning notes
+# anochat — progress and learning notes
 
-Last updated: 2026-11-19
+Updated: 2026-11-19
 
-## Goal
+## Current goal
 
-Rebuild h4chat as **anochat**, a no-login anonymous real-time app optimized for quickly sending text and formatted code between phones and computers using a temporary room link. Preserve the sparse dark terminal aesthetic, but make connections and delivery more reliable.
+A minimal terminal-style, no-login chat for temporary groups and quick formatted code sharing across phone/PC/college computers.
 
-Original reference: https://github.com/h4dotai/h4chat
+## Phase 2 — requested simplification and group messaging
 
-## Phase 1 — initial implementation (CI checks passing; real-device testing pending)
+- [x] Removed homepage logo, oversized hero, tagline and promotional copy
+- [x] Kept a plain dark terminal layout: anochat, duration, people, create room
+- [x] Room duration defaults to 5 minutes (other options: 10, 30)
+- [x] Room capacity defaults to 4 people, selectable from 2 through 10
+- [x] Room API enforces configured capacity and maintains connected participant list
+- [x] Group chat publishes messages to all connected people in a room
+- [x] Added browser-side AES-256-GCM message encryption with random IV per message
+- [x] Invite URL includes encryption key in fragment, never sent as an API/Socket.IO parameter
+- [x] Server accepts/stores ciphertext + IV, not plaintext
+- [x] Copied code keeps spaces, tabs and line breaks; use Ctrl+Enter to send
+- [x] Retry-safe client message IDs and server duplicate suppression in active message history
+- [x] Added group-capacity tests and encryption round-trip/wrong-key tests
+- [ ] Verify automated tests/build for phase 2
+- [ ] Deploy persistent backend and configure frontend environment variables
+- [ ] Two real devices: join / send / reconnect / full room / expiry smoke test
 
-- [x] Repository scaffolding: JavaScript monorepo, React/Vite client, Express/Socket.IO server
-- [x] Minimal black, monospace terminal-inspired homepage and chat layout
-- [x] Create shareable UUID room from UI through a server endpoint
-- [x] User-selectable absolute room lifetime of 5, 10, or 30 minutes
-- [x] Maximum two *distinct participant IDs* in each room
-- [x] Random anonymous names such as ghost, echo and cipher
-- [x] Real-time message transmission with acknowledgement and errors
-- [x] Socket.IO automatic reconnect and rejoin using sessionStorage participant ID
-- [x] 5-minute message TTL, independent of the room lifetime, plus expiry sweep
-- [x] Multiline editor: Enter newline, Ctrl/Cmd+Enter send, Tab inserts two spaces
-- [x] Plain text message display using pre-wrap and copy button to preserve indentation
-- [x] Room expiration countdown, users sidebar, link-copy, phone-responsive styles
-- [x] RoomStore unit tests (written, not yet run in this environment)
-- [x] GitHub Actions executed npm install, server unit tests, and frontend production build successfully (2026-11-19)
-- [ ] Real two-device smoke test on deployed instances
-- [ ] Verify deploys and check WebSocket behavior on production hosts
-- [ ] Add integration tests for Socket.IO reconnect, ordering, and multiple tabs
-- [x] GitHub Actions workflow running tests and build on push/PR (passing on commit b053823)
+## Key architectural concepts
+
+1. HTTP POST creates a room and saves `duration` and `maxParticipants`.
+2. Socket.IO joins the specific room and fans out group chat state to all members.
+3. Each browser has a random participant ID in sessionStorage. This is a reconnect convenience, not an authenticated identity.
+4. Before sending, the browser encrypts a plaintext message using Web Crypto AES-GCM.
+5. The server validates and stores only `ciphertext`, `iv`, and minimal message metadata.
+6. Other browsers import the shared key from the invite link fragment and decrypt locally.
+7. The random per-room key is shared through the full invite link. If the link leaks, anyone possessing it may decrypt messages.
+8. Room expiration is counted from creation. Message retention expires individually after 5 minutes, even in longer rooms.
+9. A server acknowledgment means it received a message; it doesn't prove recipients read it. Retry uses the same clientMessageId to limit duplicates.
+10. Current state is in memory on one server. Multi-instance scaling needs coordinated room state; no extra infrastructure for now.
+
+## Security caveats
+
+- AES-GCM client-side encryption is implemented, but no external security audit has been done.
+- Sharing the invite link shares decryption ability. Room metadata and usernames are not encrypted.
+- Participant IDs are not secure accounts. Users with only the room ID may still attempt to occupy a slot.
+- HTTPS protects transport. The static frontend remains trusted code; it could theoretically be changed by a compromised host.
+- Avoid sending private credentials or other sensitive secrets.
+
+## Deployment
+
+- [x] Vercel frontend linked to `harshbarnawa/anochat`: https://anochat.vercel.app
+- [ ] Persistent Node.js server deployment
+- [ ] Vercel `VITE_API_URL` and `VITE_SOCKET_URL` and server `CLIENT_ORIGIN`
+- [ ] Real production end-to-end chat verification
+
+The live frontend alone cannot create rooms until backend deployment is finished.
+
+## Original project
+
+Read-only reference: https://github.com/h4dotai/h4chat
+
+## Phase 1 history
 
 ## Architecture
 
@@ -50,46 +81,16 @@ Every 5 seconds server removes expired rooms, prunes messages older than 5 minut
 6. React renders messages as text, not HTML, reducing XSS exposure. pre-wrap preserves newlines and spaces.
 7. Message TTL and room lifetime are different timers.
 8. In-memory state disappears on restart and cannot span horizontally scaled instances without shared storage and coordination.
-9. No end-to-end encryption is claimed; room URLs are bearer access links and sharing them grants access if a slot is open.
+9. Historical note: phase 1 was unencrypted; phase 2 added browser-side AES-GCM.
 
 ## Issues / production readiness
 
 - The server needs a persistent host supporting Socket.IO. A static frontend host alone is not enough.
-- No true E2EE, message receipt, guaranteed delivery, or persistence across server restarts.
+- No external encryption audit, message receipt, guaranteed delivery, or persistence across server restarts.
 - Current reconnect identity is per-browser-tab, not an account. Socket disconnects briefly free the slot.
 - No room-creation rate limiting yet; add before public launch.
 - No multi-instance coordination (Redis adapter + shared room/session store) yet.
 - Ensure deployment host names and VITE_API_URL/VITE_SOCKET_URL/CORS origins are configured.
 - Build and tests require verification before calling this a working release.
 
-## How to run
 
-Install Node.js 20.19+.
-
-```bash
-npm install
-npm run dev
-```
-
-Open http://localhost:5173. Run `npm test` and `npm run build` separately.
-
-## Future engineering exercises
-
-- Integration tests with two clients and a third rejected client
-- Message delivery test with intentional network interruption
-- Retry-safe message client IDs and de-duplication, delivered/read receipts
-- Reconnect grace period vs strict two-user slot safety
-- Paste-size limits, syntax-highlighted code blocks, copy-feedback
-- Request throttling, connection limits, security review
-- Redis state + horizontal scaling and load-test results
-
-## Deployment progress — 2026-11-19
-
-- [x] Vercel project `anochat` created and connected to GitHub `harshbarnawa/anochat` main branch.
-- [x] Production frontend is READY at https://anochat.vercel.app (Vite build, commit 62296bb).
-- [x] Added client/vercel.json to serve `/room/:id` routes through the SPA.
-- [ ] Deploy persistent Socket.IO backend (not supported by the static Vercel frontend alone).
-- [ ] Set VITE_API_URL and VITE_SOCKET_URL in Vercel and CLIENT_ORIGIN on backend, then redeploy frontend.
-- [ ] Verify create-room and two-device chat end to end after backend deployment.
-
-Current live site is **frontend-only**: API `/api/rooms` is not connected to a live server, so Create Room will fail until the backend is online. Keep implementation focused; no optional features during deployment.

@@ -1,41 +1,48 @@
 # anochat
 
-Anonymous, temporary real-time chat for messages and formatted code. No accounts, login, or permanent message history.
+Temporary, anonymous group chat for sharing messages and formatted code between devices. No accounts.
 
-A JavaScript rebuild of the earlier [h4chat](https://github.com/h4dotai/h4chat) learning project.
+**Live frontend:** https://anochat.vercel.app
 
-## Run locally
+## Rooms
 
-Install Node.js 20.19+ and npm.
+- Default duration: **5 minutes**, choose 5 / 10 / 30 minutes.
+- Default people limit: **4**, choose any number from **2 to 10**.
+- The invite URL gives access to the room. Share it only with the people you want to join.
+- All participants share the same chat, like a temporary group conversation.
+- Messages remain for at most 5 minutes; the room closes when its chosen duration ends.
+- Pasting and copying code preserves whitespace, tabs, indentation and line breaks.
+- Enter adds a new line; Ctrl/Cmd+Enter sends; Tab inserts two spaces.
+
+## Encryption
+
+Browsers encrypt and decrypt messages using a shared random **256-bit AES-GCM room key**, embedded after `#k=` in the invite link. URL fragments are not sent in normal HTTP requests. The Node.js server stores and broadcasts **ciphertext and IV only**. The room key is never sent to the server by this app.
+
+This is a lightweight browser-side encrypted learning project, **not an independently audited messenger**. Anyone with the full invite link can decrypt messages; sharing the link shares the key. There is no user identity verification, group membership is not cryptographically authenticated, and browsers still trust the served client code. Do not use it for sensitive secrets.
+
+## Start for development
+
+Node.js 20.19+ or 22+:
 
 ```bash
 npm install
 npm run dev
-```
-
-Open **http://localhost:5173**. Frontend Vite proxies API and Socket.IO to the Node server on port 4000.
-
-```bash
 npm test
 npm run build
 ```
 
-## Behavior
+Open http://localhost:5173. The Vite client proxies backend requests to Node.js port 4000.
 
-- Select a 5, 10, or 30 minute room life when creating a room.
-- Share the link with one other person. Maximum two anonymous participants.
-- Messages vanish from server memory after 5 minutes, independent of room life.
-- Paste code with spaces, indentation, tabs and newlines preserved.
-- **Enter** inserts a newline, **Ctrl/Cmd+Enter** sends, **Tab** indents.
-- Socket.IO reconnects automatically and attempts to rejoin after interruptions.
-- In-memory rooms are erased when expired or when the server restarts.
+## Deployment
 
-This first implementation is **not end-to-end encrypted** and is **not production-hardened**. Do not send credentials or secrets. Read [progress.md](./progress.md) for current status, architectural notes, test checklist and next improvements.
+Vercel serves the static frontend. A separate persistent Socket.IO/Express backend is required for creating rooms and sending messages.
 
-## Deployment environment
+Backend environment:
+- `PORT` — server port, defaults to 4000
+- `CLIENT_ORIGIN` — allowed frontend origin(s), e.g. `https://anochat.vercel.app`
 
-Server: `PORT` (default 4000), `CLIENT_ORIGIN` (comma-separated allowed browser origins).
+Vercel client build environment:
+- `VITE_API_URL` — public backend base URL
+- `VITE_SOCKET_URL` — public backend Socket.IO URL (usually same as API)
 
-Client build: `VITE_API_URL` (public API base URL), `VITE_SOCKET_URL` (Socket.IO server base URL).
-
-Deploy the server to a long-running WebSocket-capable host, then the static Vite client to a frontend host. Configure CORS origin(s) to your frontend URL.
+Rooms and messages exist in the memory of one Node server and vanish after the configured expiry or server restart. The project is not horizontally scalable yet. See [progress.md](./progress.md) for implementation and testing notes.
