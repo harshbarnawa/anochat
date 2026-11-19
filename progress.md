@@ -117,6 +117,8 @@ Known limits: Render free services can cold-start; in-memory rooms disappear if 
 - [x] Composer starts at one line and expands while typing (capped at 200px / mobile viewport), then scrolls internally.
 - [x] Enter sends, Shift+Enter adds newline, Tab inserts spaces.
 - [x] Added unit tests for activity log semantics and expiry.
-- [ ] Confirm automated tests/build, Vercel and Render deployments after this commit.
+- [x] GitHub Actions server tests, encryption tests and Vite build passed for code commit `4d11cf1`.
+- [x] Vercel production deployment READY and Render service LIVE for code commit `4d11cf1`.
+- [ ] Fresh production two-browser smoke test specifically for join/leave logs and textarea growth.
 
 User confirmed live two-browser encrypted chat and code-formatting transfer before these changes. Activity logs contain public room metadata (names and timestamps), not plaintext messages.
