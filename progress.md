@@ -20,7 +20,7 @@ A minimal terminal-style, no-login chat for temporary groups and quick formatted
 - [x] Copied code keeps spaces, tabs and line breaks; use Ctrl+Enter to send
 - [x] Retry-safe client message IDs and server duplicate suppression in active message history
 - [x] Added group-capacity tests and encryption round-trip/wrong-key tests
-- [ ] Verify automated tests/build for phase 2
+- [x] GitHub Actions Node 22: server unit tests, client AES-GCM tests and Vite build passed (commit a4b338f)
 - [ ] Deploy persistent backend and configure frontend environment variables
 - [ ] Two real devices: join / send / reconnect / full room / expiry smoke test
 
